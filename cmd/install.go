@@ -11,8 +11,8 @@ import (
 )
 
 type installCmdOpts struct {
-	installDir                string
-	postInstallRestartEnabled bool
+	installDir                 string
+	postInstallRestartDisabled bool
 }
 
 // installCmd represents the install command
@@ -26,13 +26,13 @@ func NewInstallCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			checkErrorAndExit(installOpts.fixInstallDirPath())
 			checkErrorAndExit(extractManifestFiles(installOpts.installDir, args[0]))
-			if installOpts.postInstallRestartEnabled {
+			if !installOpts.postInstallRestartDisabled {
 				checkErrorAndExit(restartMicroShiftService())
 			}
 		},
 	}
-	installCmd.PersistentFlags().StringVarP(&installOpts.installDir, "installDir", "i", "/etc/microshift/", "directory to place the manifests extracted from the bundle container")
-	installCmd.PersistentFlags().BoolVarP(&installOpts.postInstallRestartEnabled, "restart", "r", false, "post extraction of the manifests, whether the microshift service should be restarted")
+	installCmd.PersistentFlags().StringVarP(&installOpts.installDir, "installDir", "i", "/etc/microshift/manifests.d/", "directory to place the manifests extracted from the bundle container")
+	installCmd.PersistentFlags().BoolVarP(&installOpts.postInstallRestartDisabled, "no-restart", "", false, "post extraction of the manifests, do not restart microshift service")
 	return installCmd
 }
 

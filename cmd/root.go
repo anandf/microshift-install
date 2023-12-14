@@ -122,7 +122,8 @@ func extractManifestFiles(outputDir, imageRef string) error {
 			fmt.Println("Skipping file:" + header.Name)
 			continue
 		}
-		fileName := outputDir + string(os.PathSeparator) + header.Name
+		fileName := outputDir + header.Name
+		fileName = strings.Replace(fileName, "manifests/", "", 1)
 		switch header.Typeflag {
 		case tar.TypeDir:
 			_, err := os.Stat(fileName)

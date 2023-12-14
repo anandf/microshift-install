@@ -15,14 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	BUNDLE_MANIFESTS_FILE_NAME            = "openshift-gitops-microshift-bundle.tar"
-	BUNDLE_MANIFESTS_COMPRESSED_FILE_NAME = "openshift-gitops-microshift-bundle.tar.gz"
-)
-
 type extractCmdOpts struct {
 	outputDir string
 	compress  bool
+	version   string
+	tempDir   string
 }
 
 // extractCmd represents the extract command
@@ -40,7 +37,9 @@ func NewExtractCmd() *cobra.Command {
 			defer func() {
 				checkErrorAndExit(os.RemoveAll(tempDir))
 			}()
-			checkErrorAndExit(extractManifestFiles(tempDir, args[0]))
+			extractOpts.tempDir = tempDir + string(os.PathSeparator)
+			checkErrorAndExit(extractManifestFiles(extractOpts.tempDir, args[0]))
+			checkErrorAndExit(extractOpts.extractVersionFromTag(args[0]))
 			checkErrorAndExit(extractOpts.createArchive(tempDir))
 		},
 	}
@@ -59,7 +58,7 @@ func (extractOpts *extractCmdOpts) createArchive(sourceDir string) error {
 	var tarFile *os.File
 	var err error
 	if extractOpts.compress {
-		tarFile, err = os.Create(extractOpts.outputDir + BUNDLE_MANIFESTS_COMPRESSED_FILE_NAME)
+		tarFile, err = os.Create(fmt.Sprintf("%sopenshift-gitops-microshift-bundle_%s.tar.gz", extractOpts.outputDir, extractOpts.version))
 		if err != nil {
 			return err
 		}
@@ -67,7 +66,7 @@ func (extractOpts *extractCmdOpts) createArchive(sourceDir string) error {
 		defer gw.Close()
 		tw = tar.NewWriter(gw)
 	} else {
-		tarFile, err = os.Create(extractOpts.outputDir + BUNDLE_MANIFESTS_FILE_NAME)
+		tarFile, err = os.Create(fmt.Sprintf("%sopenshift-gitops-microshift-bundle_%s.tar", extractOpts.outputDir, extractOpts.version))
 		if err != nil {
 			return err
 		}
@@ -115,7 +114,7 @@ func (extractOpts *extractCmdOpts) addToArchive(tw *tar.Writer, filename string)
 		return err
 	}
 
-	header.Name = strings.Replace(filename, extractOpts.outputDir, "", 1)
+	header.Name = strings.Replace(filename, extractOpts.tempDir, "", 1)
 
 	// Write file header to the tar archive
 	err = tw.WriteHeader(header)
@@ -144,4 +143,14 @@ func (extractOpts *extractCmdOpts) fixOutputDirPath() error {
 	}
 
 	return createDirectory(extractOpts.outputDir)
+}
+
+func (extractOpts *extractCmdOpts) extractVersionFromTag(imageWithTag string) error {
+	imageParts := strings.Split(imageWithTag, ":")
+	if len(imageParts) >= 2 {
+		extractOpts.version = imageParts[1]
+	} else {
+		fmt.Errorf("unable to get version tag from image url %s", imageWithTag)
+	}
+	return nil
 }
