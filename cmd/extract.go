@@ -6,6 +6,7 @@ package cmd
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,14 +34,14 @@ func NewExtractCmd() *cobra.Command {
 		Short: "extracts the kustomize manifest files from the OLM bundle container to a tar file",
 		Long:  `extracts the kustomize manifest files from the OLM bundle container to a tar file`,
 		Run: func(cmd *cobra.Command, args []string) {
-			err := extractManifestFiles(extractOpts.outputDir, args[0])
-			if err != nil {
-				panic(err)
-			}
-			err = extractOpts.createArchive()
-			if err != nil {
-				panic(err)
-			}
+			checkErrorAndExit(extractOpts.fixOutputDirPath())
+			tempDir, err := os.MkdirTemp(os.TempDir(), "microshift-install-*")
+			checkErrorAndExit(err)
+			defer func() {
+				checkErrorAndExit(os.RemoveAll(tempDir))
+			}()
+			checkErrorAndExit(extractManifestFiles(tempDir, args[0]))
+			checkErrorAndExit(extractOpts.createArchive(tempDir))
 		},
 	}
 	extractCmd.PersistentFlags().StringVarP(&extractOpts.outputDir, "outputDir", "o", "/tmp", "output directory to place the extracted kustomize manifests as a tar file")
@@ -48,15 +49,17 @@ func NewExtractCmd() *cobra.Command {
 	return extractCmd
 }
 
-func (extractOpts *extractCmdOpts) createArchive() error {
+func (extractOpts *extractCmdOpts) createArchive(sourceDir string) error {
 	// Create new Writers for gzip and tar
 	// These writers are chained. Writing to the tar writer will
 	// write to the gzip writer which in turn will write to
 	// the file
 
 	var tw *tar.Writer
+	var tarFile *os.File
+	var err error
 	if extractOpts.compress {
-		tarFile, err := os.Create(extractOpts.outputDir + string(os.PathSeparator) + BUNDLE_MANIFESTS_COMPRESSED_FILE_NAME)
+		tarFile, err = os.Create(extractOpts.outputDir + BUNDLE_MANIFESTS_COMPRESSED_FILE_NAME)
 		if err != nil {
 			return err
 		}
@@ -64,17 +67,18 @@ func (extractOpts *extractCmdOpts) createArchive() error {
 		defer gw.Close()
 		tw = tar.NewWriter(gw)
 	} else {
-		tarFile, err := os.Create(extractOpts.outputDir + string(os.PathSeparator) + BUNDLE_MANIFESTS_FILE_NAME)
+		tarFile, err = os.Create(extractOpts.outputDir + BUNDLE_MANIFESTS_FILE_NAME)
 		if err != nil {
 			return err
 		}
 		tw = tar.NewWriter(tarFile)
 	}
 	defer tw.Close()
+	fmt.Println("Created archive file " + tarFile.Name())
 
 	files := []string{}
-	filepath.WalkDir(extractOpts.outputDir, func(path string, entry os.DirEntry, err error) error {
-		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tar.gz") {
+	filepath.WalkDir(sourceDir, func(path string, entry os.DirEntry, err error) error {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".yaml" {
 			files = append(files, path)
 		}
 		return nil
@@ -82,15 +86,16 @@ func (extractOpts *extractCmdOpts) createArchive() error {
 
 	// Iterate over files and add them to the tar archive
 	for _, file := range files {
-		err := addToArchive(tw, file)
+		err := extractOpts.addToArchive(tw, file)
 		if err != nil {
 			return err
 		}
 	}
+	fmt.Println("Successfuly written archive file " + tarFile.Name() + " to archive")
 	return nil
 }
 
-func addToArchive(tw *tar.Writer, filename string) error {
+func (extractOpts *extractCmdOpts) addToArchive(tw *tar.Writer, filename string) error {
 	// Open the file which will be written into the archive
 	file, err := os.Open(filename)
 	if err != nil {
@@ -110,11 +115,7 @@ func addToArchive(tw *tar.Writer, filename string) error {
 		return err
 	}
 
-	// Use full path as name (FileInfoHeader only takes the basename)
-	// If we don't do this the directory strucuture would
-	// not be preserved
-	// https://golang.org/src/archive/tar/common.go?#L626
-	header.Name = filename
+	header.Name = strings.Replace(filename, extractOpts.outputDir, "", 1)
 
 	// Write file header to the tar archive
 	err = tw.WriteHeader(header)
@@ -122,10 +123,25 @@ func addToArchive(tw *tar.Writer, filename string) error {
 		return err
 	}
 
+	if !info.Mode().IsRegular() {
+		//skip non-regular file
+		return nil
+	}
+
+	fmt.Println("Writing file " + file.Name() + " to archive")
 	// Copy file content to tar archive
 	_, err = io.Copy(tw, file)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (extractOpts *extractCmdOpts) fixOutputDirPath() error {
+	// if the output dir does not end with path separator(/), then append the path separator
+	if extractOpts.outputDir[len(extractOpts.outputDir)-1] != os.PathSeparator {
+		extractOpts.outputDir = fmt.Sprintf("%s%c", extractOpts.outputDir, os.PathSeparator)
+	}
+
+	return createDirectory(extractOpts.outputDir)
 }
