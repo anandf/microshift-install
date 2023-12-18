@@ -141,7 +141,7 @@ argocd --core app list
 argocd app create guestbook --core --repo https://github.com/anandf/argocd-example-apps.git --path kustomize-guestbook --dest-namespace guestbook --dest-server https://kubernetes.default.svc --sync-policy automated --self-heal --sync-option CreateNamespace=true
 ```
 ```
-argocd app create kserve --core --repo https://github.com/anandf/microshift-install.git --path kserve/base --dest-namespace kserve --dest-server https://kubernetes.default.svc --directory-recurse --sync-policy automated --self-heal --sync-option CreateNamespace=true
+argocd app create kserve --core --repo https://github.com/anandf/microshift-install.git --path kserve/base --dest-namespace kserve --dest-server https://kubernetes.default.svc --directory-recurse --sync-policy none --sync-option CreateNamespace=true
 ```
 
 ```
