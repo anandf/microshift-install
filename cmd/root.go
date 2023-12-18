@@ -49,7 +49,7 @@ func Execute() {
 
 func extractManifestFiles(outputDir, imageRef string) error {
 	ctx := context.Background()
-	rc := regclient.New()
+	rc := regclient.New(regclient.WithDockerCreds())
 	//r := ref.Ref{Scheme: "reg", Registry: "registry-proxy.engineering.redhat.com", Repository: "rh-osbs/openshift-gitops-1-gitops-microshift-bundle", Tag: "v99.9.0-7"}
 	r, err := ref.New(imageRef)
 	if err != nil {
