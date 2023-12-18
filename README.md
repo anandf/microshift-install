@@ -138,8 +138,12 @@ argocd --core app list
 
 # Creating an Argo Application using argocd CLI
 ```
-argocd app create guestbook --core --repo https://github.com/anandf/argocd-example-apps.git --path guestbook/dev --dest-namespace guestbook --dest-server https://kubernetes.default.svc --directory-recurse --sync-policy automated --self-heal --sync-option CreateNamespace=true
+argocd app create guestbook --core --repo https://github.com/anandf/argocd-example-apps.git --path kustomize-guestbook --dest-namespace guestbook --dest-server https://kubernetes.default.svc --sync-policy automated --self-heal --sync-option CreateNamespace=true
 ```
 ```
 argocd app create kserve --core --repo https://github.com/anandf/microshift-install.git --path kserve/base --dest-namespace kserve --dest-server https://kubernetes.default.svc --directory-recurse --sync-policy automated --self-heal --sync-option CreateNamespace=true
+```
+
+```
+argocd app create cert-manager --core --repo https://github.com/anandf/microshift-install.git --path cert-manager --dest-namespace cert-manager --dest-server https://kubernetes.default.svc --directory-recurse --sync-policy automated --self-heal --sync-option CreateNamespace=true
 ```
