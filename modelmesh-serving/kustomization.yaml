@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kubeflow
+resources:
+  - https://github.com/kserve/modelmesh-serving/config/default?ref=main&timeout=90s
+  - https://github.com/kserve/modelmesh-serving/config/rbac/cluster-scope?ref=main&timeout=90s
+  - https://raw.githubusercontent.com/kserve/modelmesh-serving/main/config/runtimes/mlserver-1.x.yaml
+  - ./inferenceservice.yaml
+patches:
+images:
+  - name: mlserver-1
+    newName: seldonio/mlserver
+    newTag: "1.3.2"
+transformers:
+  - https://raw.githubusercontent.com/kserve/modelmesh-serving/main/config/default/metadataLabelTransformer.yaml
