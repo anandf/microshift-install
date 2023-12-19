@@ -6,6 +6,7 @@ resources:
   - https://github.com/kserve/modelmesh-serving/config/rbac/cluster-scope?ref=main&timeout=90s
   - https://raw.githubusercontent.com/kserve/modelmesh-serving/main/config/runtimes/mlserver-1.x.yaml
   - ./inferenceservice.yaml
+  - ./namespace.yaml
 patches:
 images:
   - name: mlserver-1
